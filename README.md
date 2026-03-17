@@ -1,350 +1,244 @@
 # Wasfaty Invoice Processor
 
-A professional Windows desktop application for automating Wasfaty invoice processing and API submission. This application connects to your databases, fetches invoice data, and automatically submits it to the Wasfaty tracking API while maintaining complete audit logs.
+A professional Windows desktop application for automating Wasfaty invoice processing and API submission. Built with WPF and .NET 8.0, featuring a modern Material Design UI.
 
-## Features
+## 🌟 Features
 
-✨ **Modern Material Design UI** - Beautiful, intuitive interface with Material Design components
+- ✅ **Modern UI** - Beautiful, intuitive interface with Material Design components
+- 📅 **Date-Based Processing** - Process invoices for single dates or date ranges
+- 🔄 **Automatic Retry** - Smart retry logic for API authentication and submissions
+- 📊 **Processing History** - Complete history with detailed statistics
+- 🔍 **Detailed Logging** - Real-time activity logs with comprehensive audit trail
+- 💾 **Database Tracking** - Stores all API requests, responses, and invoice details
+- ⚡ **Batch Processing** - Process multiple days in sequence automatically
+- 🛡️ **Error Handling** - Robust error handling with detailed error messages
+- 🧹 **Character Sanitization** - Automatic cleaning of special characters
+- 📦 **Large Response Handling** - Supports processing 1000+ invoices per batch
 
-📅 **Date-Based Processing** - Process invoices for single dates or date ranges
+## 🖼️ Screenshots
 
-🔄 **Automatic Retry** - Smart retry logic for API authentication and submissions
+Modern gradient header with professional UI design, organized card-based layout, and real-time processing feedback.
 
-📊 **Processing History** - Complete history of all processed dates with detailed statistics
+## 📋 Prerequisites
 
-🔍 **Detailed Logging** - Real-time activity logs with comprehensive audit trail
+- **Windows 10/11**
+- **.NET 8.0 Desktop Runtime** ([Download](https://dotnet.microsoft.com/download/dotnet/8.0))
+- **SQL Server** (NOT Express Edition) for local tracking database
+- **Network Access** to:
+  - Remote SQL Server (for invoice data)
+  - Wasfaty API endpoint
 
-💾 **Database Tracking** - Stores all API requests, responses, and invoice details locally
+## 🚀 Quick Start
 
-⚡ **Batch Processing** - Process multiple days in sequence automatically
+### 1. Clone the Repository
 
-🛡️ **Error Handling** - Robust error handling with detailed error messages
+```bash
+git clone https://github.com/YOUR_USERNAME/WASFATYTRACKER.git
+cd WASFATYTRACKER
+```
 
-## Prerequisites
+### 2. Setup Configuration
 
-- Windows 10/11
-- .NET 8.0 Runtime or SDK
-- SQL Server (not Express) running on localhost
-- Access to remote SQL Server (10.10.8.182)
-- Visual Studio 2022 (for building from source)
+Copy the template and fill in your credentials:
 
-## Installation & Setup
+```bash
+copy WasfatyInvoiceProcessor\appsettings.template.json WasfatyInvoiceProcessor\appsettings.json
+```
 
-### Step 1: Database Setup
+Edit `appsettings.json` with your database credentials and API keys.
 
-1. **Create the local database:**
-   - Open SQL Server Management Studio (SSMS)
-   - Connect to your local SQL Server instance (localhost)
-   - Open the file `DatabaseSetup.sql`
-   - Execute the script to create the `WasfatyTracker` database and tables
+### 3. Setup Database
 
-2. **Verify database credentials:**
-   - Local Server: localhost
-   - Database: WasfatyTracker
-   - User: sa
-   - Password: 123
+Run the database setup script in SQL Server Management Studio:
 
-3. **Verify remote database access:**
-   - Remote Server: 10.10.8.182
-   - Database: rmsmainprod
-   - User: sa
-   - Password: P@ssw0rd
+```sql
+-- Execute DatabaseSetup.sql on your local SQL Server
+```
 
-### Step 2: Build the Application
+### 4. Build & Run
 
-1. Open a terminal in the project directory:
-   ```cmd
-   cd d:\WasfatyTracker
-   ```
+```bash
+dotnet restore
+dotnet build --configuration Release
+dotnet run --project WasfatyInvoiceProcessor
+```
 
-2. Restore NuGet packages:
-   ```cmd
-   dotnet restore
-   ```
+Or open `WasfatyInvoiceProcessor.sln` in Visual Studio 2022.
 
-3. Build the solution:
-   ```cmd
-   dotnet build --configuration Release
-   ```
+## 📦 Deployment
 
-4. The executable will be located at:
-   ```
-   d:\WasfatyTracker\WasfatyInvoiceProcessor\bin\Release\net8.0-windows\WasfatyInvoiceProcessor.exe
-   ```
+To create a deployment package:
 
-### Step 3: Configuration
+```bash
+dotnet publish WasfatyInvoiceProcessor/WasfatyInvoiceProcessor.csproj --configuration Release --output Publish
+```
 
-The application uses `appsettings.json` for configuration. The default settings are:
+See [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) for detailed deployment instructions.
+
+## 🗂️ Project Structure
+
+```
+WasfatyTracker/
+├── WasfatyInvoiceProcessor/      # Main application
+│   ├── Models/                   # Data models
+│   ├── Services/                 # Business logic services
+│   ├── MainWindow.xaml           # Modern UI
+│   └── appsettings.template.json # Configuration template
+├── DatabaseSetup.sql              # Database schema
+├── README.md                      # This file
+└── Documentation/
+    ├── DEPLOYMENT_GUIDE.md        # Deployment instructions
+    ├── CHARACTER_SANITIZATION.md  # Text cleaning rules
+    ├── API_ERROR_FIX.md          # API troubleshooting
+    └── UI_REDESIGN_SUMMARY.md    # UI documentation
+```
+
+## 🔧 Configuration
+
+The `appsettings.json` file contains:
 
 ```json
 {
   "Database": {
-    "LocalConnectionString": "Server=localhost;Database=WasfatyTracker;User Id=sa;Password=123;TrustServerCertificate=True;",
-    "RemoteConnectionString": "Server=10.10.8.182;Database=rmsmainprod;User Id=sa;Password=P@ssw0rd;TrustServerCertificate=True;"
+    "LocalConnectionString": "Server=YOUR_SERVER;Database=WasfatyTracker;...",
+    "RemoteConnectionString": "Server=YOUR_REMOTE;Database=rmsmainprod;..."
   },
   "Api": {
-    "BaseUrl": "https://uniserve-backend.victoriousglacier-19fcd426.uaenorth.azurecontainerapps.io",
-    "LoginEndpoint": "/api/auth/login",
-    "InvoiceEndpoint": "/api/wasfaty-tracking/invoices",
-    "Email": "aa_oraiqat@unitedpharmacy.sa",
-    "Password": "2179372228",
-    "TimeoutSeconds": 120
+    "BaseUrl": "https://your-api-url",
+    "Email": "your-email",
+    "Password": "your-password",
+    "TimeoutSeconds": 300
   }
 }
 ```
 
-**If you need to change any settings:**
-- Edit the `appsettings.json` file in the output directory
-- Rebuild the application
+⚠️ **Security**: Never commit `appsettings.json` with real credentials!
 
-## Usage
-
-### First Time Setup
-
-1. **Launch the application**
-   - Double-click `WasfatyInvoiceProcessor.exe`
-
-2. **Test connections**
-   - Click the "TEST CONNECTIONS" button
-   - Verify that both database connections and API authentication succeed
-   - Check the activity log for any errors
-
-### Processing Invoices
-
-#### Process a Single Date
-
-1. Select a date using the "Select Date" picker
-2. Click "PROCESS DATE" to process that date
-   - Or click "REPROCESS DATE" if the date was already processed
-
-#### Process a Date Range
-
-1. Set the "Start Date" (default: December 1, 2025)
-2. Set the "End Date" (default: today)
-3. Click "PROCESS RANGE" to process all dates in the range
-   - Or click "REPROCESS RANGE" to reprocess already-processed dates
-
-**Note:** When processing a range, the application will:
-- Process each date sequentially
-- Wait 1 second between dates to avoid API rate limits
-- Show progress and status for each date
-- Continue even if one date fails
-
-### Understanding the Results
-
-The application shows detailed results for each processing operation:
-
-- **Total**: Number of invoices found for that date
-- **Created**: Invoices successfully created in the API
-- **Skipped**: Invoices already existing (duplicates)
-- **Failed**: Invoices that failed to process
-
-### Viewing History
-
-The Processing History grid shows:
-- **Date**: The processing date
-- **Status**: Success, Failed, or Partial
-- **Total/Success/Skipped/Failed**: Invoice counts
-- **Started/Completed**: Processing timestamps
-- **Message**: Summary message from the API
-
-Click "REFRESH HISTORY" to reload the history grid.
-
-### Generating Reports
-
-Click "GENERATE REPORT" to create a summary report for all processed dates. The report appears in the activity log and includes:
-- Total days processed
-- Total invoices by status
-- Daily breakdown
-
-### Activity Log
-
-The activity log at the bottom shows:
-- Real-time processing status
-- API authentication events
-- Success/error messages
-- Detailed results after each processing operation
-
-Click "CLEAR" to clear the log.
-
-## Database Schema
+## 📊 Database Schema
 
 ### Local Database: WasfatyTracker
 
-#### ProcessingHistory
-Tracks each date's processing status and results.
+- **ProcessingHistory** - Tracks each date's processing status
+- **APIRequest** - Logs all API requests
+- **APIResponse** - Logs all API responses
+- **InvoiceDetails** - Stores individual invoice processing details
 
-| Column | Type | Description |
-|--------|------|-------------|
-| Id | INT | Primary key |
-| ProcessingDate | DATE | Date being processed |
-| Status | NVARCHAR(50) | Success, Failed, Partial, Processing |
-| TotalInvoices | INT | Total invoices found |
-| SuccessCount | INT | Successfully created invoices |
-| FailedCount | INT | Failed invoices |
-| SkippedCount | INT | Skipped/duplicate invoices |
-| StartedAt | DATETIME2 | Processing start time |
-| CompletedAt | DATETIME2 | Processing completion time |
-| ResponseMessage | NVARCHAR(500) | API response message |
-| ErrorMessage | NVARCHAR(MAX) | Error details if failed |
+See [DatabaseSetup.sql](DatabaseSetup.sql) for complete schema.
 
-#### APIRequest
-Logs every API request made by the application.
+## 🎨 Modern UI Features
 
-| Column | Type | Description |
-|--------|------|-------------|
-| Id | INT | Primary key |
-| ProcessingHistoryId | INT | Related processing record |
-| RequestType | NVARCHAR(50) | Authentication or Invoice |
-| RequestUrl | NVARCHAR(500) | Full API endpoint URL |
-| RequestMethod | NVARCHAR(10) | POST, GET, etc. |
-| RequestHeaders | NVARCHAR(MAX) | Request headers (JSON) |
-| RequestBody | NVARCHAR(MAX) | Request payload |
-| RequestedAt | DATETIME2 | Request timestamp |
+- **Gradient Header** - Professional blue-to-teal gradient
+- **Card-Based Layout** - Organized sections with elevation
+- **Color-Coded Results** - Green (success), Orange (skipped), Red (failed)
+- **Responsive Design** - Adapts to different screen sizes
+- **Real-Time Feedback** - Progress indicators and activity logs
 
-#### APIResponse
-Logs every API response received.
+## 🔍 Key Features Detail
 
-| Column | Type | Description |
-|--------|------|-------------|
-| Id | INT | Primary key |
-| APIRequestId | INT | Related request record |
-| StatusCode | INT | HTTP status code |
-| IsSuccess | BIT | Success flag |
-| ResponseHeaders | NVARCHAR(MAX) | Response headers |
-| ResponseBody | NVARCHAR(MAX) | Response payload |
-| ErrorMessage | NVARCHAR(MAX) | Error details if failed |
-| ResponseReceivedAt | DATETIME2 | Response timestamp |
-| DurationMs | INT | Response time in ms |
+### Single Date Processing
+Process invoices for a specific date with validation and error handling.
 
-#### InvoiceDetails
-Stores individual invoice processing details.
+### Date Range Processing
+Batch process multiple days automatically with progress tracking.
 
-| Column | Type | Description |
-|--------|------|-------------|
-| Id | INT | Primary key |
-| ProcessingHistoryId | INT | Related processing record |
-| WasfatyInvoiceReference | NVARCHAR(50) | Unique invoice reference |
-| Alias | NVARCHAR(20) | Pharmacy alias |
-| InvoiceDateTime | DATETIME2 | Invoice date/time |
-| CustomerName | NVARCHAR(200) | Customer name |
-| CustomerPhone | NVARCHAR(20) | Customer phone |
-| CustomerId | NVARCHAR(50) | Customer ID |
-| ProcessingStatus | NVARCHAR(50) | Created, Skipped, Failed |
-| ErrorMessage | NVARCHAR(MAX) | Error details if any |
+### Processing History
+View complete history of all processed dates with:
+- Total invoices
+- Success/Failed/Skipped counts
+- Processing timestamps
+- Response messages
 
-## Troubleshooting
+### Activity Log
+Real-time logs showing:
+- Connection tests
+- API authentication
+- Processing progress
+- Detailed error messages
 
-### Connection Issues
+### Character Sanitization
+Automatically removes special characters from:
+- Product descriptions
+- Customer names
 
-**Problem**: "Failed to connect to database"
-- Verify SQL Server is running on localhost
-- Confirm credentials: sa / 123
-- Check that TCP/IP is enabled in SQL Server Configuration Manager
-- Ensure SQL Server Authentication is enabled
+Excluded characters: `( ) + = & # @ ! : ; % *` and more.
 
-**Problem**: "Remote database connection failed"
-- Verify network connectivity to 10.10.8.182
-- Check firewall rules allow SQL Server port (1433)
-- Confirm remote server credentials
+## 🛠️ Technologies Used
 
-### API Issues
-
-**Problem**: "Authentication failed"
-- Verify API credentials in appsettings.json
-- Check if the API endpoint is accessible
-- Ensure internet connectivity
-
-**Problem**: "Request timeout"
-- Increase `TimeoutSeconds` in appsettings.json (default: 120)
-- Check network stability
-
-### Data Issues
-
-**Problem**: "No invoices found"
-- Verify the date has invoices meeting the criteria:
-  - InvoiceTypeId = 8
-  - Phone number length = 12
-  - Net amount >= 100
-- Check the remote database has data for that date
-
-## API Response Format
-
-The API returns responses in this format:
-
-```json
-{
-    "success": true,
-    "data": {
-        "total": 5,
-        "success": 1,
-        "failed": 0,
-        "skipped": 4,
-        "errors": [
-            {
-                "index": 1,
-                "reference": "260101200027010107",
-                "error": "Duplicate - already exists"
-            }
-        ]
-    },
-    "message": "Processed 5 invoices: 1 created, 4 skipped, 0 failed"
-}
-```
-
-## Architecture
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                        MainWindow (UI)                       │
-│  - Date Pickers, Buttons, DataGrid, Progress, Logs          │
-└───────────────────────────┬─────────────────────────────────┘
-                            │
-                            ▼
-┌─────────────────────────────────────────────────────────────┐
-│              InvoiceProcessingService (Orchestration)        │
-│  - Coordinates all operations                                │
-│  - Handles business logic                                    │
-│  - Reports status and progress                               │
-└──────────┬──────────────┬──────────────┬────────────────────┘
-           │              │              │
-           ▼              ▼              ▼
-┌──────────────┐  ┌──────────────┐  ┌──────────────┐
-│  LocalDB     │  │  RemoteDB    │  │  WasfatyApi  │
-│  Service     │  │  Service     │  │  Service     │
-│              │  │              │  │              │
-│ - Logging    │  │ - Fetch      │  │ - Auth       │
-│ - History    │  │   Invoices   │  │ - Submit     │
-│ - Tracking   │  │ - Query SQL  │  │   Invoices   │
-└──────┬───────┘  └──────┬───────┘  └──────┬───────┘
-       │                 │                 │
-       ▼                 ▼                 ▼
-┌──────────────┐  ┌──────────────┐  ┌──────────────┐
-│  WasfatyTracker│  │  rmsmainprod │  │  API         │
-│  (localhost)  │  │  (10.10.8.182)│  │  Endpoint    │
-└──────────────┘  └──────────────┘  └──────────────┘
-```
-
-## Technologies Used
-
-- **.NET 8.0** - Application framework
-- **WPF** - Windows Presentation Foundation for UI
+- **.NET 8.0** - Modern application framework
+- **WPF** - Windows Presentation Foundation for rich UI
 - **Material Design** - Modern UI components and theming
 - **Dapper** - Lightweight ORM for database operations
 - **Microsoft.Data.SqlClient** - SQL Server connectivity
 - **Newtonsoft.Json** - JSON serialization
 - **HttpClient** - REST API communication
 
-## License
+## 📖 Documentation
 
-Internal tool for United Pharmacy use only.
+- [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) - Complete deployment instructions
+- [CHARACTER_SANITIZATION.md](CHARACTER_SANITIZATION.md) - Text cleaning documentation
+- [API_ERROR_FIX.md](API_ERROR_FIX.md) - API troubleshooting guide
+- [LARGE_RESPONSE_FIX.md](LARGE_RESPONSE_FIX.md) - Large data handling
+- [UI_REDESIGN_SUMMARY.md](UI_REDESIGN_SUMMARY.md) - UI design documentation
 
-## Support
+## 🐛 Troubleshooting
 
-For issues or questions, contact the development team.
+### Connection Failed
+- Verify SQL Server is running
+- Check connection strings in `appsettings.json`
+- Test network connectivity
+
+### API Authentication Failed
+- Verify API credentials
+- Check if account is locked (wait for unlock)
+- Ensure API endpoint is accessible
+
+### No Invoices Found
+- Verify date has invoices in remote database
+- Check invoice criteria (Type 8, Phone length 12, Amount >= 100)
+
+See [API_ERROR_FIX.md](API_ERROR_FIX.md) for detailed troubleshooting.
+
+## 🔐 Security Notes
+
+- **Never commit** `appsettings.json` with real credentials
+- Use `.gitignore` to exclude sensitive files
+- Store credentials securely
+- Use environment variables or secret management in production
+
+## 📝 License
+
+Internal tool for authorized use only.
+
+## 👥 Contributing
+
+This is an internal project. Contact the development team for access.
+
+## 📞 Support
+
+For issues or questions:
+1. Check the documentation in the repository
+2. Review the Activity Log for error details
+3. Contact your system administrator
+
+## 🚀 Future Enhancements
+
+- [ ] Multi-user support
+- [ ] Email notifications
+- [ ] Scheduled processing
+- [ ] Export to Excel
+- [ ] Advanced filtering
+- [ ] Dashboard with statistics
+
+## 📊 Version History
+
+### Version 1.0 (Current)
+- Modern UI redesign with gradient header
+- Enhanced error handling and logging
+- Large response support (1000+ invoices)
+- Character sanitization
+- Improved connection handling
+- Two new fields: `wasfatyPrescripionId` and `patientId`
 
 ---
 
-**Version:** 1.0.0  
-**Last Updated:** January 3, 2026  
-**Author:** Development Team
+**Built with ❤️ for efficient invoice processing**
