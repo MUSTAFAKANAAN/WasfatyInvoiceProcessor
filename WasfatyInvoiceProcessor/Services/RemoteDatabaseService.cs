@@ -33,8 +33,9 @@ public class RemoteDatabaseService
             ;WITH InvoiceData AS (
     SELECT 
         a.Id,
-        w.Reference as WasfatyPrescripionId,
+        w.Reference AS WasfatyPrescripionId,
         w.PatientId,
+        w.erxid AS WasfatyErxId,
         a.Barcode AS WasfatyInvoiceReference,
         'P' + SUBSTRING(a.Barcode, 10, 3) AS Alias,
         CONVERT(VARCHAR(23), a.closedatelocaltime, 121) AS InvoiceDateTime,
@@ -66,20 +67,23 @@ public class RemoteDatabaseService
     LEFT JOIN wasfaty.dbo.wasfatyapr w ON w.erxid COLLATE Arabic_100_CI_AI = WasfatyPrescripionId
     WHERE InvoiceTypeId = 8
         AND LEN(a.consumerphonenumber) = 12
-        AND CAST(a.closedate AS DATE) = @TargetDate
+        AND a.CloseDate >= @TargetDate
+        AND a.CloseDate < DATEADD(DAY, 1, @TargetDate)
         AND a.netamount >= 100
 ),
 InvoiceLines AS (
     SELECT 
         inv.Id AS InvoiceId,
         a.ItemBarCode AS ItemCode,
-           ISNULL(b.Description, b.NativeName) AS Description,
+        ISNULL(b.Description, b.NativeName) AS Description,
         SUM(a.Quantity) AS QtyDispensed,
-        1 AS IsChronicMedication
+        1 AS IsChronicMedication,
+        MAX(b.MaterialNumber) AS MaterialNumber,
+        MAX(inv.WasfatyErxId) AS WasfatyErxId
     FROM InvoiceData inv
     INNER JOIN InvoiceItems a ON inv.Id = a.InvoiceId
     INNER JOIN Items b ON a.ItemId = b.Id
-    GROUP BY inv.Id, a.ItemBarCode,   ISNULL(b.Description, b.NativeName)
+    GROUP BY inv.Id, a.ItemBarCode, ISNULL(b.Description, b.NativeName)
 )
 SELECT 
     inv.WasfatyInvoiceReference AS wasfatyInvoiceReference,
@@ -97,7 +101,18 @@ SELECT
             lines.ItemCode AS itemCode,
             lines.Description AS description,
             lines.QtyDispensed AS qtyDispensed,
-            lines.IsChronicMedication AS isChronicMedication
+            lines.IsChronicMedication AS isChronicMedication,
+            COALESCE((
+                SELECT TOP 1 CAST(JSON_VALUE(activity.value, '$.Refills') AS DECIMAL(10,2))
+                FROM wasfaty.dbo.WasfatyErxJson E
+                CROSS APPLY OPENJSON(E.JsonBodyWithItems, '$.Entity.Prescription.Activity') AS activity
+                WHERE E.ErxId = lines.WasfatyErxId
+                  AND EXISTS (
+                      SELECT 1
+                      FROM OPENJSON(activity.value, '$.BrandItems') AS brandItem
+                      WHERE JSON_VALUE(brandItem.value, '$.ItemNumber') COLLATE Arabic_100_CI_AI = lines.MaterialNumber COLLATE Arabic_100_CI_AI
+                  )
+            ), 0.0) AS refills
         FROM InvoiceLines lines
         WHERE lines.InvoiceId = inv.Id
         FOR JSON PATH

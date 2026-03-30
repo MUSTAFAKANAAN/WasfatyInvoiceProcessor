@@ -51,4 +51,7 @@ public class InvoiceLine
     
     [JsonProperty("isChronicMedication")]
     public int IsChronicMedication { get; set; }
+    
+    [JsonProperty("refills")]
+    public decimal Refills { get; set; }
 }

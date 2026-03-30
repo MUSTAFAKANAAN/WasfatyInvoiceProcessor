@@ -186,7 +186,8 @@ public class WasfatyApiService
             var requestBody = JsonConvert.SerializeObject(invoices, new JsonSerializerSettings
             {
                 NullValueHandling = NullValueHandling.Ignore,
-                Formatting = Formatting.None
+                Formatting = Formatting.None,
+                DefaultValueHandling = DefaultValueHandling.Include  // Include default values (0 for decimals)
             });
 
             // Log the request
