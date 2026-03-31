@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
 using Microsoft.Extensions.Configuration;
@@ -38,10 +39,13 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         InitializeComponent();
         DataContext = this;
 
-        // Load configuration
+        // Load configuration from embedded resource
+        var assembly = Assembly.GetExecutingAssembly();
+        using var stream = assembly.GetManifestResourceStream("WasfatyInvoiceProcessor.appsettings.json")
+            ?? throw new Exception("Embedded appsettings.json not found.");
+
         var config = new ConfigurationBuilder()
-            .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
-            .AddJsonFile("appsettings.json", optional: false)
+            .AddJsonStream(stream)
             .Build();
 
         var settings = config.Get<AppSettings>() ?? throw new Exception("Failed to load settings");
