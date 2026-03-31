@@ -104,11 +104,19 @@
                                    FontSize="20" 
                                    FontWeight="Bold"
                                    Foreground="White"/>
-                        <TextBlock Text="Automated invoice processing and tracking system"
-                                   FontSize="12" 
-                                   Foreground="White"
-                                   Opacity="0.9"
-                                   Margin="0,2,0,0"/>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Automated invoice processing and tracking system"
+                                       FontSize="12" 
+                                       Foreground="White"
+                                       Opacity="0.9"
+                                       Margin="0,2,0,0"/>
+                            <TextBlock Text="{Binding AppVersion}"
+                                       FontSize="11"
+                                       Foreground="White"
+                                       Opacity="0.7"
+                                       Margin="8,2,0,0"
+                                       VerticalAlignment="Center"/>
+                        </StackPanel>
                     </StackPanel>
                 </StackPanel>
                 

@@ -27,6 +27,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
+    public string AppVersion { get; } =
+        $"v{Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "1.0.0"}";
+
     public event PropertyChangedEventHandler? PropertyChanged;
 
     protected void OnPropertyChanged(string propertyName)
