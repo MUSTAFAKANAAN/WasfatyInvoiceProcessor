@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <item>
-    <version>1.0.2</version>
-    <url>https://github.com/MUSTAFAKANAAN/WasfatyInvoiceProcessor/releases/download/v1.0.2/WasfatyInvoiceProcessor.exe</url>
+    <version>1.0.3</version>
+    <url>https://github.com/MUSTAFAKANAAN/WasfatyInvoiceProcessor/releases/download/v1.0.3/WasfatyInvoiceProcessor.exe</url>
     <changelog>https://github.com/MUSTAFAKANAAN/WasfatyInvoiceProcessor/releases</changelog>
     <mandatory>false</mandatory>
 </item>

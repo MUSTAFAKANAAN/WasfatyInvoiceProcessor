@@ -183,7 +183,11 @@ public class WasfatyApiService
             }
 
             var url = $"{_baseUrl}{_invoiceEndpoint}";
-            var requestBody = JsonConvert.SerializeObject(invoices, new JsonSerializerSettings
+
+            // Sanitize string fields to avoid WAF rejections
+            var sanitizedInvoices = SanitizeInvoices(invoices);
+
+            var requestBody = JsonConvert.SerializeObject(sanitizedInvoices, new JsonSerializerSettings
             {
                 NullValueHandling = NullValueHandling.Ignore,
                 Formatting = Formatting.None,
@@ -352,7 +356,18 @@ public class WasfatyApiService
                 {
                     return (false, null, $"Unauthorized (401): Token may be invalid or expired. Response: {responseBody.Substring(0, Math.Min(500, responseBody.Length))}");
                 }
-                
+
+                // WAF rejection — retry each invoice individually to skip only the bad ones
+                if (response.StatusCode == System.Net.HttpStatusCode.BadRequest && IsWafError(responseBody))
+                {
+                    if (invoices.Count > 1)
+                    {
+                        return await SubmitInvoicesOneByOneAsync(invoices, processingHistoryId);
+                    }
+                    // Single invoice rejected — skip it
+                    return (false, null, $"Invoice '{invoices[0].WasfatyInvoiceReference}' blocked by WAF and was skipped.");
+                }
+
                 return (false, null, 
                     $"API request failed with status {response.StatusCode}. " +
                     $"Response: {responseBody.Substring(0, Math.Min(500, responseBody.Length))}");
@@ -377,6 +392,111 @@ public class WasfatyApiService
 
             return (false, null, $"Error submitting invoices: {ex.Message}");
         }
+    }
+
+    private static List<InvoiceData> SanitizeInvoices(List<InvoiceData> invoices)
+    {
+        foreach (var invoice in invoices)
+        {
+            invoice.WasfatyInvoiceReference = SanitizeString(invoice.WasfatyInvoiceReference);
+            invoice.WasfatyPrescripionId    = SanitizeString(invoice.WasfatyPrescripionId);
+            invoice.PatientId               = SanitizeString(invoice.PatientId);
+            invoice.Alias                   = SanitizeString(invoice.Alias);
+            // InvoiceDateTime is a formatted date — preserve colons and digits
+            invoice.InvoiceDateTime         = SanitizeDateTimeString(invoice.InvoiceDateTime);
+            invoice.CustomerName            = SanitizeString(invoice.CustomerName);
+            invoice.CustomerPhone           = SanitizeString(invoice.CustomerPhone);
+            invoice.CustomerId              = SanitizeString(invoice.CustomerId);
+
+            foreach (var line in invoice.InvoiceLines)
+            {
+                line.ItemCode    = SanitizeString(line.ItemCode);
+                line.Description = SanitizeString(line.Description);
+            }
+        }
+        return invoices;
+    }
+
+    // Whitelist approach: only allow safe characters to pass through
+    private static string SanitizeString(string value)
+    {
+        if (string.IsNullOrEmpty(value)) return value;
+
+        var sb = new StringBuilder();
+        foreach (char c in value)
+        {
+            if ((c >= 'A' && c <= 'Z') ||
+                (c >= 'a' && c <= 'z') ||
+                (c >= '0' && c <= '9') ||
+                (c >= 0x0600 && c <= 0x06FF) || // Arabic
+                c == ' ' || c == '.' || c == ',' || c == '-' || c == '/')
+            {
+                sb.Append(c);
+            }
+        }
+
+        var result = sb.ToString().Trim();
+        while (result.Contains("  "))
+            result = result.Replace("  ", " ");
+        return result;
+    }
+
+    // DateTime strings like "2024-01-15 14:30:00.000" — allow colons and dots
+    private static string SanitizeDateTimeString(string value)
+    {
+        if (string.IsNullOrEmpty(value)) return value;
+
+        var sb = new StringBuilder();
+        foreach (char c in value)
+        {
+            if ((c >= '0' && c <= '9') || c == '-' || c == ':' || c == '.' || c == ' ')
+                sb.Append(c);
+        }
+        return sb.ToString().Trim();
+    }
+
+    private static bool IsWafError(string responseBody) =>
+        responseBody.Contains("potentially malicious") ||
+        responseBody.Contains("Invalid input detected");
+
+    private async Task<(bool Success, InvoiceApiResponse? Response, string? Error)> SubmitInvoicesOneByOneAsync(
+        List<InvoiceData> invoices,
+        int processingHistoryId)
+    {
+        var aggregated = new InvoiceApiData { Total = invoices.Count };
+        var allErrors  = new List<InvoiceError>();
+
+        for (int i = 0; i < invoices.Count; i++)
+        {
+            var single = new List<InvoiceData> { invoices[i] };
+            var (success, response, error) = await SubmitInvoicesAsync(single, processingHistoryId);
+
+            if (success && response?.Data != null)
+            {
+                aggregated.Success += response.Data.Success;
+                aggregated.Failed  += response.Data.Failed;
+                aggregated.Skipped += response.Data.Skipped;
+                allErrors.AddRange(response.Data.Errors);
+            }
+            else
+            {
+                aggregated.Failed++;
+                allErrors.Add(new InvoiceError
+                {
+                    Index     = i,
+                    Reference = invoices[i].WasfatyInvoiceReference,
+                    Error     = error ?? "Blocked by WAF"
+                });
+            }
+        }
+
+        aggregated.Errors = allErrors;
+        return (true, new InvoiceApiResponse
+        {
+            Success = true,
+            Data    = aggregated,
+            Message = $"Processed with per-invoice fallback. {aggregated.Failed} invoice(s) skipped due to WAF."
+        }, null);
     }
 
     private static string CleanJsonString(string json)

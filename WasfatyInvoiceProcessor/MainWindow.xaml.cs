@@ -326,41 +326,90 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             return;
         }
 
+        var startDate = StartDatePicker.SelectedDate.Value.Date;
+        var endDate   = EndDatePicker.SelectedDate.Value.Date;
+        var totalDays = (int)(endDate - startDate).TotalDays + 1;
+
         IsProcessing = true;
+
+        // Replace progress handler with a range-aware one that shows overall progress
+        _processingService.ProgressChanged -= OnProgressChanged;
+        int currentDayIndex = 0;
+        EventHandler<int> rangeProgressHandler = (_, dayProgress) =>
+        {
+            Dispatcher.Invoke(() =>
+            {
+                var overall = (int)(((currentDayIndex - 1) * 100.0 + dayProgress) / totalDays);
+                ProgressBar.Value = overall;
+                ProgressText.Text = $"{overall}%  (Day {currentDayIndex}/{totalDays})";
+            });
+        };
+        _processingService.ProgressChanged += rangeProgressHandler;
+
         try
         {
             LogMessage($"{'='.ToString().PadRight(60, '=')}");
-            LogMessage($"Starting range processing: {StartDatePicker.SelectedDate.Value:yyyy-MM-dd} to {EndDatePicker.SelectedDate.Value:yyyy-MM-dd}");
+            LogMessage($"Starting range processing: {startDate:yyyy-MM-dd} to {endDate:yyyy-MM-dd} ({totalDays} day(s))");
 
-            var results = await _processingService.ProcessDateRangeAsync(
-                StartDatePicker.SelectedDate.Value,
-                EndDatePicker.SelectedDate.Value,
-                forceReprocess
-            );
+            int totalInvoices = 0, totalSuccess = 0, totalSkipped = 0, totalFailed = 0, successDays = 0;
+            var currentDate = startDate;
 
-            var successCount = results.Count(r => r.Success && r.SuccessCount > 0);
-            var totalInvoices = results.Sum(r => r.TotalInvoices);
-            var totalSuccess = results.Sum(r => r.SuccessCount);
-            var totalSkipped = results.Sum(r => r.SkippedCount);
-            var totalFailed = results.Sum(r => r.FailedCount);
+            while (currentDate <= endDate)
+            {
+                currentDayIndex++;
+                LogMessage($"");
+                LogMessage($"--- Day {currentDayIndex}/{totalDays}: {currentDate:yyyy-MM-dd} ---");
 
+                var result = await _processingService.ProcessDateAsync(currentDate, forceReprocess);
+
+                LogMessage($"  Result:   {(result.Success ? "SUCCESS" : "FAILED")}");
+                LogMessage($"  Total:    {result.TotalInvoices}");
+                LogMessage($"  Created:  {result.SuccessCount}");
+                LogMessage($"  Skipped:  {result.SkippedCount}");
+                LogMessage($"  Failed:   {result.FailedCount}");
+                LogMessage($"  Message:  {result.Message}");
+
+                if (!string.IsNullOrEmpty(result.ErrorMessage))
+                    LogMessage($"  Error:    {result.ErrorMessage}");
+
+                if (result.Errors.Any())
+                {
+                    LogMessage($"  Error Details:");
+                    foreach (var error in result.Errors.Take(10))
+                        LogMessage($"    - {error.Reference}: {error.Error}");
+                    if (result.Errors.Count > 10)
+                        LogMessage($"    ... and {result.Errors.Count - 10} more errors");
+                }
+
+                if (result.Success) successDays++;
+                totalInvoices += result.TotalInvoices;
+                totalSuccess  += result.SuccessCount;
+                totalSkipped  += result.SkippedCount;
+                totalFailed   += result.FailedCount;
+
+                currentDate = currentDate.AddDays(1);
+            }
+
+            LogMessage($"");
+            LogMessage($"{'='.ToString().PadRight(60, '=')}");
             LogMessage($"Range processing completed!");
-            LogMessage($"  Days processed: {results.Count}");
-            LogMessage($"  Successful days: {successCount}");
-            LogMessage($"  Total invoices: {totalInvoices}");
-            LogMessage($"  Created: {totalSuccess}");
-            LogMessage($"  Skipped: {totalSkipped}");
-            LogMessage($"  Failed: {totalFailed}");
+            LogMessage($"  Days processed:   {totalDays}");
+            LogMessage($"  Successful days:  {successDays}");
+            LogMessage($"  Total invoices:   {totalInvoices}");
+            LogMessage($"  Created:          {totalSuccess}");
+            LogMessage($"  Skipped:          {totalSkipped}");
+            LogMessage($"  Failed:           {totalFailed}");
 
             LoadHistoryAsync();
 
             MessageBox.Show(
                 $"Range processing completed!\n\n" +
-                $"Days processed: {results.Count}\n" +
+                $"Days processed: {totalDays}\n" +
+                $"Successful days: {successDays}\n\n" +
                 $"Total invoices: {totalInvoices}\n" +
-                $"Created: {totalSuccess}\n" +
-                $"Skipped: {totalSkipped}\n" +
-                $"Failed: {totalFailed}",
+                $"Created:  {totalSuccess}\n" +
+                $"Skipped:  {totalSkipped}\n" +
+                $"Failed:   {totalFailed}",
                 "Range Processing Complete",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
@@ -373,6 +422,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
         finally
         {
+            // Restore original progress handler
+            _processingService.ProgressChanged -= rangeProgressHandler;
+            _processingService.ProgressChanged += OnProgressChanged;
+
             IsProcessing = false;
             ProgressBar.Value = 0;
             StatusText.Text = "Ready";

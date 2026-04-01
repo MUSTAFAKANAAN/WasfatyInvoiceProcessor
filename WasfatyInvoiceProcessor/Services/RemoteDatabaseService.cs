@@ -12,19 +12,79 @@ public class RemoteDatabaseService
 {
     private readonly string _connectionString;
 
+    private const int MaxRetries    = 3;
+    private const int RetryDelayMs  = 3000;
+
+    // SQL error numbers considered transient (network/connection drops)
+    private static readonly HashSet<int> TransientErrors = new()
+    {
+        -2,    // Timeout expired
+        20,    // The instance of SQL Server does not support encryption
+        64,    // A connection was successfully established but then an error occurred
+        233,   // The client was unable to establish a connection
+        10054, // Connection forcibly closed by remote host
+        10060, // Connection timed out
+        10061, // Connection refused
+        40613, // Database on server is not currently available
+        40501, // Service is busy
+        40197, // Error processing request
+        49918, // Not enough resources
+        4060,  // Cannot open database
+        1205   // Deadlock
+    };
+
     public RemoteDatabaseService(string connectionString)
     {
         _connectionString = connectionString;
     }
 
-    private IDbConnection CreateConnection() => new SqlConnection(_connectionString);
+    private SqlConnection CreateConnection()
+    {
+        // Add built-in retry for connection phase and set keepalive
+        var builder = new SqlConnectionStringBuilder(_connectionString)
+        {
+            ConnectRetryCount    = 3,
+            ConnectRetryInterval = 10,
+            ConnectTimeout       = 120
+        };
+        return new SqlConnection(builder.ConnectionString);
+    }
 
     public async Task<List<InvoiceData>> GetInvoicesForDateAsync(DateTime targetDate)
     {
-        using var connection = CreateConnection();
-        connection.Open();
-        
-        using var command = connection.CreateCommand();
+        int attempt = 0;
+        while (true)
+        {
+            try
+            {
+                attempt++;
+                return await ExecuteGetInvoicesAsync(targetDate);
+            }
+            catch (SqlException ex) when (attempt < MaxRetries && IsTransientError(ex))
+            {
+                var delay = RetryDelayMs * attempt; // 3s, 6s
+                System.Diagnostics.Debug.WriteLine(
+                    $"[DB] Transient error on attempt {attempt}/{MaxRetries} for {targetDate:yyyy-MM-dd}: {ex.Message}. Retrying in {delay}ms...");
+                await Task.Delay(delay);
+            }
+        }
+    }
+
+    private static bool IsTransientError(SqlException ex) =>
+        ex.Errors.Cast<SqlError>().Any(e => TransientErrors.Contains(e.Number)) ||
+        ex.Message.Contains("transport-level")        ||
+        ex.Message.Contains("TCP Provider")           ||
+        ex.Message.Contains("forcibly closed")        ||
+        ex.Message.Contains("connection attempt failed") ||
+        ex.Message.Contains("connected host has failed");
+
+    private async Task<List<InvoiceData>> ExecuteGetInvoicesAsync(DateTime targetDate)
+    {
+        // Fresh connection on every call (critical for retries — never reuse a broken connection)
+        await using var connection = CreateConnection();
+        await connection.OpenAsync();
+
+        await using var command = connection.CreateCommand();
         command.CommandTimeout = 300; // 5 minutes timeout for complex query
         
         const string sql = @"
@@ -126,22 +186,16 @@ FOR JSON PATH;";
             command.CommandText = sql;
             command.Parameters.Add(new SqlParameter("@Date", System.Data.SqlDbType.DateTime) { Value = targetDate });
             
-            // Use ExecuteReader to get complete JSON result (ExecuteScalar can truncate large results)
-            var jsonResult = await Task.Run(() => 
+            // Use fully async reader — avoids Task.Run sync-over-async antipattern
+            // that caused TCP drops when reading large result sets on thread pool threads
+            var jsonBuilder = new StringBuilder();
+            await using var reader = await command.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
             {
-                var jsonBuilder = new System.Text.StringBuilder();
-                using (var reader = command.ExecuteReader())
-                {
-                    while (reader.Read())
-                    {
-                        if (!reader.IsDBNull(0))
-                        {
-                            jsonBuilder.Append(reader.GetString(0));
-                        }
-                    }
-                }
-                return jsonBuilder.ToString();
-            });
+                if (!await reader.IsDBNullAsync(0))
+                    jsonBuilder.Append(reader.GetString(0));
+            }
+            var jsonResult = jsonBuilder.ToString();
 
             if (string.IsNullOrWhiteSpace(jsonResult))
             {
@@ -219,7 +273,7 @@ FOR JSON PATH;";
         {
             throw new Exception($"Error fetching invoices for date {targetDate:yyyy-MM-dd}: {ex.Message}", ex);
         }
-    }
+    }   // end ExecuteGetInvoicesAsync
 
     private static string SanitizeText(string text)
     {
@@ -268,13 +322,13 @@ FOR JSON PATH;";
     {
         try
         {
-            using var connection = CreateConnection();
-            connection.Open();
-            return await Task.FromResult(true);
+            await using var connection = CreateConnection();
+            await connection.OpenAsync();
+            return true;
         }
         catch
         {
-            return await Task.FromResult(false);
+            return false;
         }
     }
 }
