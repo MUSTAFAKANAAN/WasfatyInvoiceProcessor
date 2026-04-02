@@ -1,3 +1,4 @@
+using AutoUpdaterDotNET;
 using System.ComponentModel;
 using System.Reflection;
 using System.Windows;
@@ -135,9 +136,15 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         SingleDatePicker.IsEnabled = !IsProcessing;
         StartDatePicker.IsEnabled = !IsProcessing;
         EndDatePicker.IsEnabled = !IsProcessing;
-        
+
         // Show/hide the modern progress overlay
         ProgressOverlay.Visibility = IsProcessing ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void CheckForUpdates_Click(object sender, RoutedEventArgs e)
+    {
+        AutoUpdater.ReportErrors = true;
+        AutoUpdater.Start("https://raw.githubusercontent.com/MUSTAFAKANAAN/WasfatyInvoiceProcessor/master/update.xml");
     }
 
     private void OnStatusChanged(object? sender, string status)
