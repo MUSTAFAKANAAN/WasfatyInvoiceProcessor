@@ -144,7 +144,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private void CheckForUpdates_Click(object sender, RoutedEventArgs e)
     {
         AutoUpdater.ReportErrors = true;
-        AutoUpdater.Start("https://raw.githubusercontent.com/MUSTAFAKANAAN/WasfatyInvoiceProcessor/master/update.xml");
+        AutoUpdater.Start("https://raw.githubusercontent.com/MUSTAFAKANAAN/WasfatyInvoiceProcessor/master/WasfatyInvoiceProcessor/update.xml");
     }
 
     private void OnStatusChanged(object? sender, string status)
